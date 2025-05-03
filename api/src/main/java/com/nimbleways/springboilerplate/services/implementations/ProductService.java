@@ -1,49 +1,41 @@
 package com.nimbleways.springboilerplate.services.implementations;
 
-import java.time.LocalDate;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 import com.nimbleways.springboilerplate.entities.Product;
 import com.nimbleways.springboilerplate.repositories.ProductRepository;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 @Service
+@RequiredArgsConstructor
 public class ProductService {
 
-    @Autowired
-    ProductRepository pr;
+    private final ProductRepository productRepository;
+    private final NotificationService notificationService;
 
-    @Autowired
-    NotificationService ns;
-
-    public void notifyDelay(int leadTime, Product p) {
-        p.setLeadTime(leadTime);
-        pr.save(p);
-        ns.sendDelayNotification(leadTime, p.getName());
+    /**
+     * Notifies clients of a delay and persists the updated product state.
+     */
+    public void notifyDelay(int leadTime, Product product) {
+        product.setLeadTime(leadTime); // Only if lead time changes, otherwise remove this line
+        productRepository.save(product);
+        notificationService.sendDelayNotification(leadTime, product.getName());
     }
 
-    public void handleSeasonalProduct(Product p) {
-        if (LocalDate.now().plusDays(p.getLeadTime()).isAfter(p.getSeasonEndDate())) {
-            ns.sendOutOfStockNotification(p.getName());
-            p.setAvailable(0);
-            pr.save(p);
-        } else if (p.getSeasonStartDate().isAfter(LocalDate.now())) {
-            ns.sendOutOfStockNotification(p.getName());
-            pr.save(p);
-        } else {
-            notifyDelay(p.getLeadTime(), p);
-        }
+    /**
+     * Optional: Generic stock decrement helper
+     */
+    public void decrementStock(Product product) {
+        product.setAvailable(product.getAvailable() - 1);
+        productRepository.save(product);
     }
 
-    public void handleExpiredProduct(Product p) {
-        if (p.getAvailable() > 0 && p.getExpiryDate().isAfter(LocalDate.now())) {
-            p.setAvailable(p.getAvailable() - 1);
-            pr.save(p);
-        } else {
-            ns.sendExpirationNotification(p.getName(), p.getExpiryDate());
-            p.setAvailable(0);
-            pr.save(p);
-        }
+    /**
+     * Optional: Mark a product as unavailable and notify
+     */
+    public void markUnavailableWithNotification(Product product, String reason) {
+        product.setAvailable(0);
+        productRepository.save(product);
+        notificationService.sendOutOfStockNotification(product.getName());
     }
 }

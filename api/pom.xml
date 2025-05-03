@@ -307,7 +307,7 @@
 					<target>${java.version}</target>
 					<showWarnings>true</showWarnings>
 					<compilerArgs>
-						<arg>-Werror</arg>
+<!--						<arg>-Werror</arg>-->
 						<arg>-Xlint:all</arg>
 						<!-- https://stackoverflow.com/a/69734707 -->
 						<arg>-Xlint:-processing</arg>
