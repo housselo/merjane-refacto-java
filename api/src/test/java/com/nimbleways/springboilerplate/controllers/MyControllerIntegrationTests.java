@@ -5,13 +5,16 @@ import com.nimbleways.springboilerplate.entities.Product;
 import com.nimbleways.springboilerplate.enums.ProductType;
 import com.nimbleways.springboilerplate.repositories.OrderRepository;
 import com.nimbleways.springboilerplate.repositories.ProductRepository;
-import com.nimbleways.springboilerplate.services.implementations.NotificationService;
+import com.nimbleways.springboilerplate.services.product.NotificationService;
+
+import lombok.RequiredArgsConstructor;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.TestConstructor;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -23,19 +26,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
+@RequiredArgsConstructor
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class MyControllerIntegrationTests {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private final MockMvc mockMvc;
+    private final OrderRepository orderRepository;
+    private final ProductRepository productRepository;
 
     @MockBean
     private NotificationService notificationService;
-
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
 
     @Test
     public void processOrderShouldReturn200AndModifyStockAccordingToBusinessRules() throws Exception {
@@ -48,15 +49,12 @@ public class MyControllerIntegrationTests {
         order = orderRepository.save(order);
 
         // Act & Assert
-        mockMvc.perform(post("/orders/{orderId}/processOrder", order.getId())
+        mockMvc.perform(post("/api/v1/orders/{orderId}/process", order.getId())
                         .contentType("application/json"))
                 .andExpect(status().isOk());
 
         Order resultOrder = orderRepository.findById(order.getId()).orElseThrow();
         assertEquals(order.getId(), resultOrder.getId());
-
-        // Optional: You can also assert product state (e.g., availability) post-processing
-        // if needed depending on how much you want to verify
     }
 
     private Order createOrder(Set<Product> products) {

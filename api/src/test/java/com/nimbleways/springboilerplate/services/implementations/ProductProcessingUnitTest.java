@@ -3,22 +3,29 @@ package com.nimbleways.springboilerplate.services.implementations;
 import com.nimbleways.springboilerplate.entities.Product;
 import com.nimbleways.springboilerplate.enums.ProductType;
 import com.nimbleways.springboilerplate.repositories.ProductRepository;
+import com.nimbleways.springboilerplate.services.product.ExpirableProductProcessor;
+import com.nimbleways.springboilerplate.services.product.NormalProductProcessor;
+import com.nimbleways.springboilerplate.services.product.NotificationService;
+import com.nimbleways.springboilerplate.services.product.ProductService;
 import com.nimbleways.springboilerplate.utils.Annotations.UnitTest;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.time.LocalDate;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(SpringExtension.class)
 @UnitTest
-public class MyUnitTests {
+public class ProductProcessingUnitTest {
 
     @Mock
     private NotificationService notificationService;
@@ -33,66 +40,65 @@ public class MyUnitTests {
     private ExpirableProductProcessor expirableProductProcessor;
 
     @BeforeEach
-    public void setup() {
+    void setUp() {
         normalProductProcessor = new NormalProductProcessor(productRepository, productService);
         expirableProductProcessor = new ExpirableProductProcessor(productRepository, notificationService);
     }
 
     @Test
-    public void shouldNotifyDelayAndSaveProduct() {
-        // GIVEN
-        Product product = new Product(null, 15, 10, ProductType.NORMAL, "RJ45 Cable", null, null, null);
+    void shouldNotifyDelayAndSaveProduct() {
+        Product product = createProduct(ProductType.NORMAL, 15, 10, "RJ45 Cable");
+
         when(productRepository.save(product)).thenReturn(product);
 
-        // WHEN
         productService.notifyDelay(product.getLeadTime(), product);
 
-        // THEN
         assertEquals(15, product.getLeadTime());
         verify(productRepository).save(product);
         verify(notificationService).sendDelayNotification(15, "RJ45 Cable");
     }
 
     @Test
-    public void shouldDecrementNormalProductIfAvailable() {
-        // GIVEN
-        Product product = new Product(null, 5, 10, ProductType.NORMAL, "Test Product", null, null, null);
+    void shouldDecrementNormalProductIfAvailable() {
+        Product product = createProduct(ProductType.NORMAL, 5, 10, "Test Product");
 
-        // WHEN
         normalProductProcessor.process(product);
 
-        // THEN
         assertEquals(9, product.getAvailable());
         verify(productRepository).save(product);
     }
 
     @Test
-    public void shouldNotifyIfProductIsExpired() {
-        // GIVEN
-        LocalDate yesterday = LocalDate.now().minusDays(1);
-        Product expiredProduct = new Product(null, 5, 1, ProductType.EXPIRABLE, "Yogurt", yesterday, null, null);
+    void shouldNotifyIfProductIsExpired() {
+        LocalDate expiredDate = LocalDate.now().minusDays(1);
+        Product expiredProduct = createExpirableProduct("Yogurt", 5, 1, expiredDate);
 
-        // WHEN
         expirableProductProcessor.process(expiredProduct);
 
-        // THEN
         assertEquals(0, expiredProduct.getAvailable());
-        verify(notificationService).sendExpirationNotification("Yogurt", yesterday);
+        verify(notificationService).sendExpirationNotification("Yogurt", expiredDate);
         verify(productRepository).save(expiredProduct);
     }
 
     @Test
-    public void shouldDecrementIfExpirableProductNotExpired() {
-        // GIVEN
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
-        Product freshProduct = new Product(null, 5, 3, ProductType.EXPIRABLE, "Cheese", tomorrow, null, null);
+    void shouldDecrementIfExpirableProductNotExpired() {
+        LocalDate expiration = LocalDate.now().plusDays(1);
+        Product freshProduct = createExpirableProduct("Cheese", 5, 3, expiration);
 
-        // WHEN
         expirableProductProcessor.process(freshProduct);
 
-        // THEN
         assertEquals(2, freshProduct.getAvailable());
         verify(productRepository).save(freshProduct);
         verifyNoInteractions(notificationService);
+    }
+
+    // --- Helpers ---
+
+    private Product createProduct(ProductType type, int leadTime, int available, String name) {
+        return new Product(null, leadTime, available, type, name, null, null, null);
+    }
+
+    private Product createExpirableProduct(String name, int leadTime, int available, LocalDate expirationDate) {
+        return new Product(null, leadTime, available, ProductType.EXPIRABLE, name, expirationDate, null, null);
     }
 }

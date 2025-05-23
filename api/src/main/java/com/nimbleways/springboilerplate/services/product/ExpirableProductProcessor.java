@@ -1,9 +1,9 @@
-package com.nimbleways.springboilerplate.services.implementations;
+package com.nimbleways.springboilerplate.services.product;
 
 import com.nimbleways.springboilerplate.entities.Product;
 import com.nimbleways.springboilerplate.enums.ProductType;
 import com.nimbleways.springboilerplate.repositories.ProductRepository;
-import com.nimbleways.springboilerplate.services.ProductProcessor;
+import com.nimbleways.springboilerplate.services.product.ProductProcessor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
